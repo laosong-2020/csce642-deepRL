@@ -101,6 +101,14 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+        state = torch.as_tensor(state)
+        nA = self.env.action_space.n
+        action_probs = np.ones(nA, dtype=float) * self.options.epsilon / nA
+        q_values = self.model(state)
+
+        best_action = torch.argmax(q_values)
+        action_probs[best_action] += 1.0 - self.options.epsilon
+        return action_probs
 
 
     def compute_target_values(self, next_states, rewards, dones):
@@ -113,6 +121,13 @@ class DQN(AbstractSolver):
         ################################
         #   YOUR IMPLEMENTATION HERE   #
         ################################
+        q_values = self.target_model(next_states)
+        if q_values.dim() == 1:
+            q_max = torch.max(q_values)
+        else:
+            q_max = torch.max(q_values, dim =1)[0]
+        target_values = rewards + self.options.gamma * q_max * (1-dones)
+        return target_values
 
 
     def replay(self):
@@ -183,12 +198,28 @@ class DQN(AbstractSolver):
 
         # Reset the environment
         state, _ = self.env.reset()
-
         for _ in range(self.options.steps):
             ################################
             #   YOUR IMPLEMENTATION HERE   #
             ################################
+            # epsilon greedy to pick one action
+            action_probs = self.epsilon_greedy(state)
+            action = np.random.choice(
+                np.arange(len(action_probs)),
+                p=action_probs
+            )
+            
+            state_prime, reward, done, _ = self.step(action)
+            
+            self.memorize(state, action, reward, state_prime, done)
+            self.replay()
+            self.n_steps += 1
 
+            if self.n_steps % self.options.update_target_estimator_every == 0:
+                self.update_target_model()
+            if done:
+                break
+            state = state_prime
 
     def __str__(self):
         return "DQN"
