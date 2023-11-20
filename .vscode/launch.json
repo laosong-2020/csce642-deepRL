@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "autograder.py",
-            "args": ["reinforce"],
+            "args": ["a2c"],
             "console": "integratedTerminal",
             "justMyCode": true
         }
